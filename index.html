@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Factorio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #16213e;
+            padding: 6px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0f3460;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            color: #e94560;
+            font-size: 1.2rem;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-item {
+            background: #0f3460;
+            padding: 4px 12px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+        }
+
+        .stat-item span {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .toolbar {
+            background: #16213e;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 160px;
+            width: 160px;
+            border-right: 2px solid #0f3460;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .toolbar h3 {
+            color: #e94560;
+            margin-bottom: 3px;
+            font-size: 0.9rem;
+        }
+
+        .tool-btn {
+            background: #0f3460;
+            border: 2px solid #1a1a2e;
+            color: #eee;
+            padding: 6px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 0.8rem;
+        }
+
+        .tool-btn:hover {
+            background: #1a1a4e;
+            border-color: #e94560;
+        }
+
+        .tool-btn.active {
+            background: #e94560;
+            border-color: #fff;
+        }
+
+        .tool-btn .icon {
+            font-size: 1.1rem;
+            margin-right: 6px;
+        }
+
+        .tool-btn .cost {
+            font-size: 0.65rem;
+            color: #aaa;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        #gameCanvas {
+            background: #2d4a3e;
+            cursor: crosshair;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .info-panel {
+            background: #16213e;
+            padding: 6px 20px;
+            border-top: 2px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .inventory {
+            display: flex;
+            gap: 12px;
+        }
+
+        .inv-item {
+            background: #0f3460;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        .inv-item .amount {
+            color: #e94560;
+            font-weight: bold;
+        }
+
+        .tooltip {
+            display: none;
+            position: fixed;
+            background: rgba(22, 33, 62, 0.95);
+            border: 1px solid #e94560;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.8rem;
+            color: #eee;
+            pointer-events: none;
+            z-index: 50;
+            min-width: 180px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        .tooltip h4 {
+            color: #e94560;
+            margin: 0 0 8px 0;
+            font-size: 0.95rem;
+            border-bottom: 1px solid rgba(233,69,96,0.3);
+            padding-bottom: 5px;
+        }
+
+        .tooltip .row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        .tooltip .row .label {
+            color: #aaa;
+        }
+
+        .tooltip .row .value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .tooltip .progress-bar {
+            margin-top: 6px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 3px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .tooltip .progress-bar .fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.1s;
+        }
+
+        .tooltip .resource-icons {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .tooltip .resource-dot {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .tooltip .resource-dot .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .tooltip .resource-dot .count {
+            font-size: 0.75rem;
+            color: #ccc;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid #e94560;
+            max-width: 500px;
+        }
+
+        .modal-content h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        .modal-content button {
+            background: #e94560;
+            border: none;
+            color: #fff;
+            padding: 10px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 1rem;
+        }
+
+        .modal-content button:hover {
+            background: #ff6b6b;
+        }
+
+        .controls-info {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>⚙️ Mini Factorio</h1>
+        <div class="stats">
+            <div class="stat-item">⏱️ Время: <span id="gameTime">0:00</span></div>
+            <div class="stat-item">📦 Произведено: <span id="totalProduced">0</span></div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="toolbar">
+            <h3>🔨 Строительство</h3>
+            <button class="tool-btn active" data-tool="mine">
+                <span class="icon">⛏️</span> Бур
+                <span class="cost">Добывает руду/уголь</span>
+            </button>
+            <button class="tool-btn" data-tool="belt">
+                <span class="icon">🔄</span> Конвейер
+                <span class="cost">Перемещает предметы</span>
+            </button>
+            <button class="tool-btn" data-tool="furnace">
+                <span class="icon">🔥</span> Печь
+                <span class="cost">Плавит руду → металл</span>
+            </button>
+            <button class="tool-btn" data-tool="assembler">
+                <span class="icon">🏭</span> Сборщик
+                <span class="cost">Металл + Уголь → Пластина</span>
+            </button>
+            <button class="tool-btn" data-tool="chest">
+                <span class="icon">📦</span> Сундук
+                <span class="cost">Хранит предметы</span>
+            </button>
+            <button class="tool-btn" data-tool="belt-turn">
+                <span class="icon">↩️</span> Поворот конвейера
+                <span class="cost">R для вращения</span>
+            </button>
+            <hr style="border-color: #0f3460;">
+            <button class="tool-btn" data-tool="delete">
+                <span class="icon">❌</span> Снести
+                <span class="cost">Удаляет постройку</span>
+            </button>
+
+            <div class="controls-info">
+                <strong>Управление:</strong><br>
+                R — вращение<br>
+                ЛКМ — построить<br>
+                Пробел — пауза
+            </div>
+        </div>
+
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+            <div class="info-panel">
+                <div class="inventory">
+                    <div class="inv-item">⛏️ Руда: <span class="amount" id="invOre">0</span></div>
+                    <div class="inv-item">🪨 Уголь: <span class="amount" id="invCoal">0</span></div>
+                    <div class="inv-item">🔩 Металл: <span class="amount" id="invMetal">0</span></div>
+                    <div class="inv-item">🔧 Пластины: <span class="amount" id="invPlate">0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="modal show" id="welcomeModal">
+        <div class="modal-content">
+            <h2>🎮 Добро пожаловать в Mini Factorio!</h2>
+            <p>Стройте автоматизированную фабрику!</p>
+            <p>🟫 <b>Буры</b> добывают руду и уголь из земли</p>
+            <p>🔄 <b>Конвейеры</b> транспортируют предметы</p>
+            <p>🔥 <b>Печи</b> переплавляют руду в металл</p>
+            <p>🏭 <b>Сборщики</b> создают пластины из металла и угля</p>
+            <p>📦 <b>Сундуки</b> хранят ваши ресурсы</p>
+            <button onclick="document.getElementById('welcomeModal').classList.remove('show')">Начать игру!</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Настройки игры
+        const TILE_SIZE = 40;
+        const GRID_W = 30;
+        const GRID_H = 20;
+        const GAME_WIDTH = GRID_W * TILE_SIZE;
+        const GAME_HEIGHT = GRID_H * TILE_SIZE;
+
+        // Масштабирование canvas под доступное пространство
+        function resizeCanvas() {
+            const gameArea = canvas.parentElement;
+            const infoPanel = document.querySelector('.info-panel');
+            const availableWidth = gameArea.clientWidth;
+            const availableHeight = gameArea.clientHeight - infoPanel.clientHeight;
+
+            const scaleX = availableWidth / GAME_WIDTH;
+            const scaleY = availableHeight / GAME_HEIGHT;
+            const scale = Math.min(scaleX, scaleY);
+
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            canvas.style.width = (GAME_WIDTH * scale) + 'px';
+            canvas.style.height = (GAME_HEIGHT * scale) + 'px';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Типы тайлов
+        const TILES = {
+            GRASS: 0,
+            ORE: 1,
+            COAL: 2
+        };
+
+        // Типы зданий
+        const BUILDINGS = {
+            NONE: null,
+            MINE: 'mine',
+            BELT: 'belt',
+            FURNACE: 'furnace',
+            ASSEMBLER: 'assembler',
+            CHEST: 'chest'
+        };
+
+        // Направления
+        const DIR = {
+            UP: 0,
+            RIGHT: 1,
+            DOWN: 2,
+            LEFT: 3
+        };
+
+        const DIR_VECTORS = [
+            { x: 0, y: -1 },  // UP
+            { x: 1, y: 0 },   // RIGHT
+            { x: 0, y: 1 },   // DOWN
+            { x: -1, y: 0 }   // LEFT
+        ];
+
+        // Состояние игры
+        let gameState = {
+            grid: [],
+            buildings: [],
+            items: [],
+            inventory: { ore: 0, coal: 0, metal: 0, plate: 0 },
+            selectedTool: 'mine',
+            beltDirection: DIR.RIGHT,
+            paused: false,
+            gameTime: 0,
+            totalProduced: 0
+        };
+
+        // Инициализация карты
+        function initGrid() {
+            for (let y = 0; y < GRID_H; y++) {
+                gameState.grid[y] = [];
+                gameState.buildings[y] = [];
+                for (let x = 0; x < GRID_W; x++) {
+                    // Генерация ресурсов
+                    let rand = Math.random();
+                    if (rand < 0.08) {
+                        gameState.grid[y][x] = TILES.ORE;
+                    } else if (rand < 0.14) {
+                        gameState.grid[y][x] = TILES.COAL;
+                    } else {
+                        gameState.grid[y][x] = TILES.GRASS;
+                    }
+                    gameState.buildings[y][x] = null;
+                }
+            }
+            // Гарантируем кластеры ресурсов
+            for (let i = 0; i < 5; i++) {
+                let cx = Math.floor(Math.random() * GRID_W);
+                let cy = Math.floor(Math.random() * GRID_H);
+                let type = Math.random() < 0.5 ? TILES.ORE : TILES.COAL;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        let nx = cx + dx, ny = cy + dy;
+                        if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H) {
+                            if (Math.random() < 0.6) gameState.grid[ny][nx] = type;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Класс предмета на конвейере
+        class Item {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'ore', 'coal', 'metal', 'plate'
+                this.progress = 0; // 0-1 прогресс движения
+                this.blocked = false;
+                this.blockedTimer = 0;
+            }
+        }
+
+        // Класс здания
+        class Building {
+            constructor(x, y, type, direction = DIR.RIGHT) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.direction = direction;
+                this.workProgress = 0;
+                this.workSpeed = 0.02; // скорость работы
+                this.inputBuffer = { ore: 0, coal: 0, metal: 0, plate: 0 };
+                this.outputBuffer = { ore: 0, coal: 0, metal: 0, plate: 0 };
+                this.cookingItem = null;
+                this.lastPlateTime = 0;
+                this.rotateFlash = 0; // Для анимации вращения
+                // Хранилище сундука (ёмкость 100)
+                this.storage = { ore: 0, coal: 0, metal: 0, plate: 0 };
+                this.storageCapacity = 100;
+            }
+        }
+
+        // Получить тайл под курсором
+        function getTileFromMouse(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = GAME_WIDTH / rect.width;
+            const scaleY = GAME_HEIGHT / rect.height;
+            const x = Math.floor((e.clientX - rect.left) * scaleX / TILE_SIZE);
+            const y = Math.floor((e.clientY - rect.top) * scaleY / TILE_SIZE);
+            return { x, y };
+        }
+
+        // Обработка клика
+        canvas.addEventListener('click', (e) => {
+            const { x, y } = getTileFromMouse(e);
+            if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return;
+
+            if (gameState.selectedTool === 'delete') {
+                gameState.buildings[y][x] = null;
+                // Удаляем предметы на этом тайле
+                gameState.items = gameState.items.filter(item => !(item.x === x && item.y === y));
+                return;
+            }
+
+            // Не ставим на ресурс (кроме бура)
+            if (gameState.grid[y][x] !== TILES.GRASS && gameState.selectedTool !== 'mine') return;
+            
+            // Бур только на ресурсах
+            if (gameState.selectedTool === 'mine' && gameState.grid[y][x] === TILES.GRASS) return;
+
+            // Не ставим поверх других зданий
+            if (gameState.buildings[y][x] !== null) return;
+
+            const building = new Building(x, y, gameState.selectedTool, gameState.beltDirection);
+            gameState.buildings[y][x] = building;
+        });
+
+        // Обработка наведения мыши — тултип
+        const tooltipEl = document.getElementById('tooltip');
+        let hoveredTile = null;
+
+        canvas.addEventListener('mousemove', (e) => {
+            const { x, y } = getTileFromMouse(e);
+            
+            if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) {
+                tooltipEl.classList.remove('show');
+                hoveredTile = null;
+                return;
+            }
+
+            hoveredTile = { x, y };
+            const building = gameState.buildings[y][x];
+            const tileType = gameState.grid[y][x];
+
+            if (building) {
+                showBuildingTooltip(building, e.clientX, e.clientY);
+            } else if (tileType === TILES.ORE) {
+                showResourceTooltip(x, y, 'ore', e.clientX, e.clientY);
+            } else if (tileType === TILES.COAL) {
+                showResourceTooltip(x, y, 'coal', e.clientX, e.clientY);
+            } else {
+                showEmptyTileTooltip(x, y, e.clientX, e.clientY);
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            tooltipEl.classList.remove('show');
+            hoveredTile = null;
+        });
+
+        function showBuildingTooltip(building, mx, my) {
+            const names = {
+                mine: '⛏️ Бур',
+                belt: '🔄 Конвейер',
+                furnace: '🔥 Печь',
+                assembler: '🏭 Сборщик',
+                chest: '📦 Сундук'
+            };
+
+            const dirNames = ['⬆️ Вверх', '➡️ Вправо', '⬇️ Вниз', '⬅️ Влево'];
+            const dirArrows = ['↑', '→', '↓', '←'];
+
+            let html = `<h4>${names[building.type] || 'Здание'}</h4>`;
+            html += `<div class="row"><span class="label">Направление:</span><span class="value">${dirArrows[building.direction]} ${dirNames[building.direction].split(' ')[1]}</span></div>`;
+            html += `<div style="margin-top:3px;color:#888;font-size:0.7rem;">💡 Нажмите <b style="color:#fff;">R</b> для вращения</div>`;
+
+            const resConfig = [
+                { key: 'ore', color: '#B87333', name: 'Руда', icon: '⛏️' },
+                { key: 'coal', color: '#555', name: 'Уголь', icon: '🪨' },
+                { key: 'metal', color: '#D0D0D0', name: 'Металл', icon: '🔩' },
+                { key: 'plate', color: '#FFD700', name: 'Пластина', icon: '🔧' }
+            ];
+
+            // Входной буфер
+            const hasInput = Object.values(building.inputBuffer).some(v => v > 0);
+            if (hasInput) {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#4CAF50;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">📥 ВХОД:</div>`;
+                for (const res of resConfig) {
+                    if (building.inputBuffer[res.key] > 0) {
+                        html += `<div class="row">`;
+                        html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                        html += `<span class="value" style="color:${res.color}">${building.inputBuffer[res.key]}</span>`;
+                        html += `</div>`;
+                    }
+                }
+                html += `</div>`;
+            } else if (building.type === 'furnace' || building.type === 'assembler') {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#666;font-size:0.75rem;">📥 Вход: пусто</div>`;
+                html += `</div>`;
+            }
+
+            // Выходной буфер
+            const hasOutput = Object.values(building.outputBuffer).some(v => v > 0);
+            if (hasOutput) {
+                html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#2196F3;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">📤 ВЫХОД:</div>`;
+                for (const res of resConfig) {
+                    if (building.outputBuffer[res.key] > 0) {
+                        html += `<div class="row">`;
+                        html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                        html += `<span class="value" style="color:${res.color}">${building.outputBuffer[res.key]}</span>`;
+                        html += `</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            // Предметы на тайле здания
+            const itemsOnTile = gameState.items.filter(item => item.x === building.x && item.y === building.y);
+            if (itemsOnTile.length > 0) {
+                html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#FF9800;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">🔄 НА КОНВЕЙЕРЕ:</div>`;
+                const itemCounts = {};
+                for (const item of itemsOnTile) {
+                    itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
+                }
+                for (const res of resConfig) {
+                    if (itemCounts[res.key]) {
+                        html += `<div class="row">`;
+                        html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                        html += `<span class="value" style="color:${res.color}">${itemCounts[res.key]}</span>`;
+                        html += `</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            // Прогресс
+            if (building.workProgress > 0) {
+                const pct = Math.round(building.workProgress * 100);
+                let barColor = '#00FF00';
+                let barLabel = 'Работает';
+                if (building.type === 'furnace') { barColor = '#FF4500'; barLabel = 'Плавит'; }
+                else if (building.type === 'assembler') { barColor = '#7FFF00'; barLabel = 'Собирает'; }
+                else if (building.type === 'mine') { barColor = '#e94560'; barLabel = 'Добывает'; }
+
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div class="row" style="margin-bottom:4px;"><span class="label">${barLabel}:</span><span class="value">${pct}%</span></div>`;
+                html += `<div class="progress-bar"><div class="fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+                html += `</div>`;
+            }
+
+            // Статус
+            html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+            if (building.type === 'assembler') {
+                if (building.inputBuffer.metal > 0 && building.inputBuffer.coal > 0) {
+                    html += `<div style="color:#7FFF00;font-size:0.8rem;font-weight:bold;">⚡ Производит пластины</div>`;
+                } else if (building.inputBuffer.metal === 0) {
+                    html += `<div style="color:#999;font-size:0.75rem;">⏸️ Нет металла</div>`;
+                } else if (building.inputBuffer.coal === 0) {
+                    html += `<div style="color:#999;font-size:0.75rem;">⏸️ Нет угля</div>`;
+                }
+            } else if (building.type === 'furnace') {
+                if (building.inputBuffer.ore > 0) {
+                    html += `<div style="color:#FF4500;font-size:0.8rem;font-weight:bold;">🔥 Плавит руду</div>`;
+                } else {
+                    html += `<div style="color:#999;font-size:0.75rem;">⏸️ Нет руды</div>`;
+                }
+            } else if (building.type === 'mine') {
+                const tileType = gameState.grid[building.y][building.x];
+                const resName = tileType === TILES.ORE ? '⛏️ Руда' : '🪨 Уголь';
+                html += `<div style="color:#aaa;font-size:0.8rem;">Добывает: <b style="color:#e94560;">${resName}</b></div>`;
+            } else if (building.type === 'chest') {
+                const totalInStorage = Object.values(building.storage).reduce((a, b) => a + b, 0);
+                const storagePct = Math.round((totalInStorage / building.storageCapacity) * 100);
+                
+                html += `<div style="color:#DAA520;font-size:0.8rem;font-weight:bold;margin-bottom:6px;">📦 ХРАНИЛИЩЕ: ${totalInStorage} / ${building.storageCapacity}</div>`;
+                
+                // Прогресс-бар заполненности
+                let barColor = '#4CAF50';
+                if (storagePct > 50) barColor = '#FF9800';
+                if (storagePct > 80) barColor = '#f44336';
+                
+                html += `<div class="progress-bar"><div class="fill" style="width:${storagePct}%;background:${barColor}"></div></div>`;
+                html += `<div class="row" style="margin-top:4px;"><span class="label">Заполнено:</span><span class="value">${storagePct}%</span></div>`;
+                
+                // Детали по типам ресурсов
+                const hasStorage = Object.values(building.storage).some(v => v > 0);
+                if (hasStorage) {
+                    html += `<div style="margin-top:6px;">`;
+                    for (const res of resConfig) {
+                        if (building.storage[res.key] > 0) {
+                            html += `<div class="row">`;
+                            html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                            html += `<span class="value" style="color:${res.color}">${building.storage[res.key]}</span>`;
+                            html += `</div>`;
+                        }
+                    }
+                    html += `</div>`;
+                } else {
+                    html += `<div style="color:#666;font-size:0.75rem;margin-top:4px;">Пусто</div>`;
+                }
+                
+                html += `<div style="color:#888;font-size:0.7rem;margin-top:6px;">💡 Автоматически переносит в инвентарь</div>`;
+            } else if (building.type === 'belt') {
+                const itemsOnBelt = gameState.items.filter(item => item.x === building.x && item.y === building.y);
+                html += `<div style="color:#FFA500;font-size:0.75rem;">Предметов на ленте: <b>${itemsOnBelt.length}</b></div>`;
+            }
+            html += `</div>`;
+
+            tooltipEl.innerHTML = html;
+            positionTooltip(mx, my);
+            tooltipEl.classList.add('show');
+        }
+
+        function showResourceTooltip(x, y, type, mx, my) {
+            const name = type === 'ore' ? '🟤 Залежи руды' : '⚫ Залежи угля';
+            const color = type === 'ore' ? '#B87333' : '#555';
+            const desc = type === 'ore' ? 'Можно построить бур для добычи руды' : 'Можно построить бур для добычи угля';
+
+            let html = `<h4>${name}</h4>`;
+            html += `<div style="margin-top:4px;">`;
+            html += `<span class="dot" style="background:${color};display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;margin-right:5px;border:1px solid rgba(255,255,255,0.3)"></span>`;
+            html += `<span style="color:#ccc;font-size:0.8rem;">${desc}</span>`;
+            html += `</div>`;
+
+            // Проверяем, есть ли предметы на этом тайле
+            const itemsOnTile = gameState.items.filter(item => item.x === x && item.y === y);
+            if (itemsOnTile.length > 0) {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#FF9800;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">📦 ПРЕДМЕТЫ НА ТАЙЛЕ:</div>`;
+                const itemCounts = {};
+                for (const item of itemsOnTile) {
+                    itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
+                }
+                const resConfig = [
+                    { key: 'ore', color: '#B87333', name: 'Руда', icon: '⛏️' },
+                    { key: 'coal', color: '#555', name: 'Уголь', icon: '🪨' },
+                    { key: 'metal', color: '#D0D0D0', name: 'Металл', icon: '🔩' },
+                    { key: 'plate', color: '#FFD700', name: 'Пластина', icon: '🔧' }
+                ];
+                for (const res of resConfig) {
+                    if (itemCounts[res.key]) {
+                        html += `<div class="row">`;
+                        html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                        html += `<span class="value" style="color:${res.color}">${itemCounts[res.key]}</span>`;
+                        html += `</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            // Проверяем, есть ли здание на этом тайле (если ресурс под зданием)
+            const building = gameState.buildings[y]?.[x];
+            if (building) {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#e94560;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">🏗️ ЗДАНИЕ НА РЕСУРСЕ:</div>`;
+                const names = { mine: '⛏️ Бур', belt: '🔄 Конвейер', furnace: '🔥 Печь', assembler: '🏭 Сборщик', chest: '📦 Сундук' };
+                html += `<div class="row"><span class="label">Тип:</span><span class="value">${names[building.type] || building.type}</span></div>`;
+                
+                // Показываем содержимое
+                const hasInput = Object.values(building.inputBuffer).some(v => v > 0);
+                const hasOutput = Object.values(building.outputBuffer).some(v => v > 0);
+                if (hasInput || hasOutput) {
+                    const resConfig = [
+                        { key: 'ore', color: '#B87333', name: 'Руда', icon: '⛏️' },
+                        { key: 'coal', color: '#555', name: 'Уголь', icon: '🪨' },
+                        { key: 'metal', color: '#D0D0D0', name: 'Металл', icon: '🔩' },
+                        { key: 'plate', color: '#FFD700', name: 'Пластина', icon: '🔧' }
+                    ];
+                    if (hasInput) {
+                        for (const res of resConfig) {
+                            if (building.inputBuffer[res.key] > 0) {
+                                html += `<div class="row"><span class="label">📥 ${res.name}:</span><span class="value" style="color:${res.color}">${building.inputBuffer[res.key]}</span></div>`;
+                            }
+                        }
+                    }
+                    if (hasOutput) {
+                        for (const res of resConfig) {
+                            if (building.outputBuffer[res.key] > 0) {
+                                html += `<div class="row"><span class="label">📤 ${res.name}:</span><span class="value" style="color:${res.color}">${building.outputBuffer[res.key]}</span></div>`;
+                            }
+                        }
+                    }
+                }
+                html += `</div>`;
+            }
+
+            tooltipEl.innerHTML = html;
+            positionTooltip(mx, my);
+            tooltipEl.classList.add('show');
+        }
+
+        function showEmptyTileTooltip(x, y, mx, my) {
+            let html = `<h4>🌿 Пустая клетка</h4>`;
+            html += `<div class="row"><span class="label">Координаты:</span><span class="value">(${x}, ${y})</span></div>`;
+            html += `<div style="margin-top:6px;color:#888;font-size:0.75rem;">Можно построить здание</div>`;
+
+            // Проверяем, есть ли предметы на тайле
+            const itemsOnTile = gameState.items.filter(item => item.x === x && item.y === y);
+            if (itemsOnTile.length > 0) {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#FF9800;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">📦 ПРЕДМЕТЫ:</div>`;
+                const itemCounts = {};
+                for (const item of itemsOnTile) {
+                    itemCounts[item.type] = (itemCounts[item.type] || 0) + 1;
+                }
+                const resConfig = [
+                    { key: 'ore', color: '#B87333', name: 'Руда', icon: '⛏️' },
+                    { key: 'coal', color: '#555', name: 'Уголь', icon: '🪨' },
+                    { key: 'metal', color: '#D0D0D0', name: 'Металл', icon: '🔩' },
+                    { key: 'plate', color: '#FFD700', name: 'Пластина', icon: '🔧' }
+                ];
+                for (const res of resConfig) {
+                    if (itemCounts[res.key]) {
+                        html += `<div class="row">`;
+                        html += `<span class="label">${res.icon} ${res.name}:</span>`;
+                        html += `<span class="value" style="color:${res.color}">${itemCounts[res.key]}</span>`;
+                        html += `</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            // Проверяем соседние здания
+            const neighbors = [
+                { dx: 0, dy: -1, label: 'Сверху' },
+                { dx: 1, dy: 0, label: 'Справа' },
+                { dx: 0, dy: 1, label: 'Снизу' },
+                { dx: -1, dy: 0, label: 'Слева' }
+            ];
+            const neighborBuildings = [];
+            for (const n of neighbors) {
+                const nx = x + n.dx, ny = y + n.dy;
+                if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H) {
+                    const b = gameState.buildings[ny][nx];
+                    if (b) neighborBuildings.push({ ...n, building: b });
+                }
+            }
+            if (neighborBuildings.length > 0) {
+                html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);">`;
+                html += `<div style="color:#aaa;font-size:0.75rem;font-weight:bold;margin-bottom:4px;">🏗️ СОСЕДНИЕ ЗДАНИЯ:</div>`;
+                const names = { mine: '⛏️ Бур', belt: '🔄 Конвейер', furnace: '🔥 Печь', assembler: '🏭 Сборщик', chest: '📦 Сундук' };
+                for (const n of neighborBuildings) {
+                    html += `<div class="row"><span class="label">${n.label}:</span><span class="value">${names[n.building.type]}</span></div>`;
+                }
+                html += `</div>`;
+            }
+
+            tooltipEl.innerHTML = html;
+            positionTooltip(mx, my);
+            tooltipEl.classList.add('show');
+        }
+
+        function positionTooltip(mx, my) {
+            const rect = tooltipEl.getBoundingClientRect();
+            const padding = 15;
+            
+            let left = mx + padding;
+            let top = my + padding;
+
+            // Не выходить за экран
+            if (left + rect.width > window.innerWidth - 10) {
+                left = mx - rect.width - padding;
+            }
+            if (top + rect.height > window.innerHeight - 10) {
+                top = my - rect.height - padding;
+            }
+
+            tooltipEl.style.left = left + 'px';
+            tooltipEl.style.top = top + 'px';
+        }
+
+        // Вращение
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') {
+                // Если курсор наведён на здание — вращаем его
+                if (hoveredTile) {
+                    const building = gameState.buildings[hoveredTile.y]?.[hoveredTile.x];
+                    if (building) {
+                        building.direction = (building.direction + 1) % 4;
+                        building.rotateFlash = 1.0; // Запускаем вспышку
+                        return;
+                    }
+                }
+                // Иначе вращаем направление для новых конвейеров
+                gameState.beltDirection = (gameState.beltDirection + 1) % 4;
+            }
+            if (e.key === ' ') {
+                e.preventDefault();
+                gameState.paused = !gameState.paused;
+            }
+        });
+
+        // Выбор инструмента
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gameState.selectedTool = btn.dataset.tool === 'belt-turn' ? 'belt' : btn.dataset.tool;
+            });
+        });
+
+        // Обновление игры
+        function update() {
+            if (gameState.paused) return;
+
+            gameState.gameTime += 1/60;
+
+            // Обновляем здания
+            for (let y = 0; y < GRID_H; y++) {
+                for (let x = 0; x < GRID_W; x++) {
+                    const building = gameState.buildings[y][x];
+                    if (!building) continue;
+
+                    if (building.type === 'mine') {
+                        updateMine(building);
+                    } else if (building.type === 'belt') {
+                        updateBelt(building);
+                    } else if (building.type === 'furnace') {
+                        updateFurnace(building);
+                    } else if (building.type === 'assembler') {
+                        updateAssembler(building);
+                    } else if (building.type === 'chest') {
+                        updateChest(building);
+                    }
+                }
+            }
+
+            // Обновляем предметы
+            updateItems();
+
+            // Обновляем UI
+            updateUI();
+        }
+
+        function updateMine(building) {
+            building.workProgress += building.workSpeed;
+            if (building.workProgress >= 1) {
+                building.workProgress = 0;
+                const tileType = gameState.grid[building.y][building.x];
+                let itemType = tileType === TILES.ORE ? 'ore' : 'coal';
+
+                // Пытаемся выбросить предмет рядом
+                const dir = DIR_VECTORS[building.direction];
+                const nx = building.x + dir.x;
+                const ny = building.y + dir.y;
+
+                if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H) {
+                    const targetBuilding = gameState.buildings[ny][nx];
+
+                    if (targetBuilding) {
+                        if (targetBuilding.type === 'furnace' || targetBuilding.type === 'assembler') {
+                            // Печь и сборщик — кладём в inputBuffer
+                            const bufLimit = targetBuilding.type === 'furnace' ? 10 : 8;
+                            if ((itemType === 'ore' || itemType === 'coal') && targetBuilding.inputBuffer[itemType] < bufLimit) {
+                                targetBuilding.inputBuffer[itemType]++;
+                            }
+                        } else if (targetBuilding.type === 'belt') {
+                            // Конвейер — создаём предмет на тайле конвейера
+                            const itemsOnBelt = gameState.items.filter(i => i.x === nx && i.y === ny).length;
+                            if (itemsOnBelt < 3) {
+                                gameState.items.push(new Item(nx, ny, itemType));
+                            }
+                        } else if (targetBuilding.type === 'chest') {
+                            // Сундук — кладём в хранилище
+                            const totalStorage = Object.values(targetBuilding.storage).reduce((a, b) => a + b, 0);
+                            if (totalStorage < targetBuilding.storageCapacity && targetBuilding.storage[itemType] < 50) {
+                                targetBuilding.storage[itemType]++;
+                            }
+                        }
+                    } else {
+                        // Нет здания — предмет падает на тайл
+                        gameState.items.push(new Item(nx, ny, itemType));
+                    }
+                }
+            }
+        }
+
+        function updateBelt(building) {
+            const dir = DIR_VECTORS[building.direction];
+            const nx = building.x + dir.x;
+            const ny = building.y + dir.y;
+
+            // Находим предметы на этом конвейере, сортируем по прогрессу (сначала те, что дальше)
+            const itemsOnBelt = gameState.items
+                .filter(item => item.x === building.x && item.y === building.y)
+                .sort((a, b) => b.progress - a.progress);
+
+            // Если предметов нет — выходим
+            if (itemsOnBelt.length === 0) return;
+
+            for (const item of itemsOnBelt) {
+                // Двигаем предмет
+                item.progress += 0.03;
+
+                if (item.progress >= 1) {
+                    item.progress = 0;
+
+                    // За пределами карты
+                    if (nx < 0 || nx >= GRID_W || ny < 0 || ny >= GRID_H) {
+                        gameState.inventory[item.type]++;
+                        gameState.items = gameState.items.filter(i => i !== item);
+                        continue;
+                    }
+
+                    const target = gameState.buildings[ny][nx];
+
+                    if (!target) {
+                        // Нет здания — предмет просто переходит на следующий тайл
+                        item.x = nx;
+                        item.y = ny;
+                        continue;
+                    }
+
+                    // Попытка передать предмет целевому зданию
+                    let transferred = false;
+
+                    if (target.type === 'belt') {
+                        // Передаём на следующий конвейер, если там не слишком много предметов
+                        const itemsOnNext = gameState.items.filter(i => i.x === nx && i.y === ny).length;
+                        if (itemsOnNext < 2) {
+                            item.x = nx;
+                            item.y = ny;
+                            item.progress = 0;
+                            transferred = true;
+                        }
+                    } else if (target.type === 'furnace') {
+                        if ((item.type === 'ore' || item.type === 'coal') && target.inputBuffer[item.type] < 10) {
+                            target.inputBuffer[item.type]++;
+                            gameState.items = gameState.items.filter(i => i !== item);
+                            transferred = true;
+                        }
+                    } else if (target.type === 'assembler') {
+                        if (item.type === 'metal' && target.inputBuffer.metal < 10) {
+                            target.inputBuffer.metal++;
+                            gameState.items = gameState.items.filter(i => i !== item);
+                            transferred = true;
+                        } else if (item.type === 'coal' && target.inputBuffer.coal < 10) {
+                            target.inputBuffer.coal++;
+                            gameState.items = gameState.items.filter(i => i !== item);
+                            transferred = true;
+                        } else if (item.type === 'ore' && target.inputBuffer.ore < 4) {
+                            target.inputBuffer.ore++;
+                            gameState.items = gameState.items.filter(i => i !== item);
+                            transferred = true;
+                        }
+                    } else if (target.type === 'chest') {
+                        const totalStorage = Object.values(target.storage).reduce((a, b) => a + b, 0);
+                        if (totalStorage < target.storageCapacity && target.storage[item.type] < 50) {
+                            target.storage[item.type]++;
+                            gameState.items = gameState.items.filter(i => i !== item);
+                            transferred = true;
+                        }
+                    }
+                    // Для других типов зданий — предмет остаётся на конвейере
+
+                    if (!transferred) {
+                        // Не удалось передать — предмет остаётся на этом конвейере
+                        item.progress = 0.95;
+                    }
+                }
+            }
+        }
+
+        function updateFurnace(building) {
+            if (building.inputBuffer.ore > 0) {
+                building.workProgress += building.workSpeed * 0.7;
+                if (building.workProgress >= 1) {
+                    building.workProgress = 0;
+                    building.inputBuffer.ore--;
+                    building.outputBuffer.metal++;
+                }
+            }
+
+            // Выбрасываем выход
+            if (building.outputBuffer.metal > 0) {
+                const dir = DIR_VECTORS[building.direction];
+                const nx = building.x + dir.x;
+                const ny = building.y + dir.y;
+                if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H) {
+                    const target = gameState.buildings[ny][nx];
+                    if (target && (target.type === 'belt' || target.type === 'assembler' || target.type === 'chest')) {
+                        if (target.type === 'belt') {
+                            if (building.outputBuffer.metal > 0) {
+                                building.outputBuffer.metal--;
+                                gameState.items.push(new Item(nx, ny, 'metal'));
+                            }
+                        } else if (target.type === 'chest') {
+                            const totalInStorage = Object.values(target.storage).reduce((a, b) => a + b, 0);
+                            if (totalInStorage < target.storageCapacity && target.storage.metal < 50) {
+                                target.storage.metal++;
+                                building.outputBuffer.metal--;
+                            }
+                        } else if (target.inputBuffer.metal < 8) {
+                            target.inputBuffer.metal++;
+                            building.outputBuffer.metal--;
+                        }
+                    } else {
+                        // Нет здания — кладём предмет на тайл
+                        if (building.outputBuffer.metal > 0) {
+                            building.outputBuffer.metal--;
+                            gameState.items.push(new Item(nx >= 0 && nx < GRID_W ? nx : building.x, ny >= 0 && ny < GRID_H ? ny : building.y, 'metal'));
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateAssembler(building) {
+            if (building.inputBuffer.metal > 0 && building.inputBuffer.coal > 0) {
+                building.workProgress += building.workSpeed * 0.5;
+                if (building.workProgress >= 1) {
+                    building.workProgress = 0;
+                    building.inputBuffer.metal--;
+                    building.inputBuffer.coal--;
+                    building.outputBuffer.plate++;
+                    building.lastPlateTime = gameState.gameTime; // Запоминаем время создания
+                    gameState.totalProduced++;
+                }
+            }
+
+            // Выбрасываем выход
+            if (building.outputBuffer.plate > 0) {
+                const dir = DIR_VECTORS[building.direction];
+                const nx = building.x + dir.x;
+                const ny = building.y + dir.y;
+                if (nx >= 0 && nx < GRID_W && ny >= 0 && ny < GRID_H) {
+                    const target = gameState.buildings[ny][nx];
+                    if (target && (target.type === 'belt' || target.type === 'chest')) {
+                        if (target.type === 'belt') {
+                            building.outputBuffer.plate--;
+                            gameState.items.push(new Item(nx, ny, 'plate'));
+                        } else if (target.type === 'chest') {
+                            const totalInStorage = Object.values(target.storage).reduce((a, b) => a + b, 0);
+                            if (totalInStorage < target.storageCapacity && target.storage.plate < 50) {
+                                target.storage.plate++;
+                                building.outputBuffer.plate--;
+                            }
+                        }
+                    } else {
+                        // Нет здания — кладём предмет на тайл
+                        building.outputBuffer.plate--;
+                        gameState.items.push(new Item(nx >= 0 && nx < GRID_W ? nx : building.x, ny >= 0 && ny < GRID_H ? ny : building.y, 'plate'));
+                    }
+                } else {
+                    gameState.inventory.plate += building.outputBuffer.plate;
+                    building.outputBuffer.plate = 0;
+                }
+            }
+        }
+
+        function updateChest(building) {
+            // Переносим из входного буфера в хранилище
+            for (let item in building.inputBuffer) {
+                if (building.inputBuffer[item] > 0) {
+                    const totalInStorage = Object.values(building.storage).reduce((a, b) => a + b, 0);
+                    const freeSpace = building.storageCapacity - totalInStorage;
+                    const perTypeLimit = 50 - building.storage[item];
+                    const canStore = Math.min(building.inputBuffer[item], freeSpace, perTypeLimit);
+                    if (canStore > 0) {
+                        building.storage[item] += canStore;
+                        building.inputBuffer[item] -= canStore;
+                    }
+                }
+            }
+            // Хранилище НЕ очищается — сундук только накапливает предметы
+        }
+
+        function updateItems() {
+            // Просто удаляем предметы за пределами карты
+            gameState.items = gameState.items.filter(item => {
+                if (item.x < 0 || item.x >= GRID_W || item.y < 0 || item.y >= GRID_H) return false;
+                return true;
+            });
+        }
+
+        // Отрисовка
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Рисуем тайлы
+            for (let y = 0; y < GRID_H; y++) {
+                for (let x = 0; x < GRID_W; x++) {
+                    const tileX = x * TILE_SIZE;
+                    const tileY = y * TILE_SIZE;
+
+                    // Фон
+                    if (gameState.grid[y][x] === TILES.ORE) {
+                        ctx.fillStyle = '#8B7355';
+                    } else if (gameState.grid[y][x] === TILES.COAL) {
+                        ctx.fillStyle = '#2C2C2C';
+                    } else {
+                        ctx.fillStyle = (x + y) % 2 === 0 ? '#3d5c4e' : '#355146';
+                    }
+                    ctx.fillRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+
+                    // Ресурсы
+                    if (gameState.grid[y][x] === TILES.ORE) {
+                        ctx.fillStyle = '#B87333';
+                        ctx.beginPath();
+                        ctx.arc(tileX + TILE_SIZE/2, tileY + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (gameState.grid[y][x] === TILES.COAL) {
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.beginPath();
+                        ctx.arc(tileX + TILE_SIZE/2, tileY + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Сетка
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.strokeRect(tileX, tileY, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
+            // Рисуем здания
+            for (let y = 0; y < GRID_H; y++) {
+                for (let x = 0; x < GRID_W; x++) {
+                    const building = gameState.buildings[y][x];
+                    if (!building) continue;
+
+                    const tileX = x * TILE_SIZE;
+                    const tileY = y * TILE_SIZE;
+
+                    // Подсветка при наведении
+                    if (hoveredTile && hoveredTile.x === x && hoveredTile.y === y) {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(tileX + 1, tileY + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                    }
+
+                    if (building.type === 'mine') {
+                        drawMine(tileX, tileY, building);
+                    } else if (building.type === 'belt') {
+                        drawBelt(tileX, tileY, building);
+                    } else if (building.type === 'furnace') {
+                        drawFurnace(tileX, tileY, building);
+                    } else if (building.type === 'assembler') {
+                        drawAssembler(tileX, tileY, building);
+                    } else if (building.type === 'chest') {
+                        drawChest(tileX, tileY, building);
+                    }
+
+                    // Вспышка при вращении
+                    if (building.rotateFlash > 0) {
+                        const alpha = building.rotateFlash * 0.5;
+                        const size = TILE_SIZE * (1 + (1 - building.rotateFlash) * 0.3);
+                        const offset = (TILE_SIZE - size) / 2;
+
+                        ctx.strokeStyle = `rgba(255, 255, 100, ${alpha})`;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(tileX + TILE_SIZE / 2, tileY + TILE_SIZE / 2, size / 2, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // Угловые стрелки
+                        ctx.strokeStyle = `rgba(255, 255, 100, ${alpha * 0.7})`;
+                        ctx.lineWidth = 1.5;
+                        const angles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+                        for (const angle of angles) {
+                            const r1 = 12;
+                            const r2 = 18;
+                            ctx.beginPath();
+                            ctx.arc(tileX + TILE_SIZE / 2, tileY + TILE_SIZE / 2, r1, angle, angle + 0.3);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.arc(tileX + TILE_SIZE / 2, tileY + TILE_SIZE / 2, r2, angle + 0.1, angle + 0.4);
+                            ctx.stroke();
+                        }
+
+                        building.rotateFlash -= 0.03;
+                        if (building.rotateFlash < 0) building.rotateFlash = 0;
+                    }
+                }
+            }
+
+            // Рисуем предметы
+            gameState.items.forEach(item => {
+                const building = gameState.buildings[item.y]?.[item.x];
+                let px, py;
+
+                if (building && building.type === 'belt') {
+                    // Предмет на конвейере — анимируем движение по направлению
+                    const dir = DIR_VECTORS[building.direction];
+                    const startOffset = -12;
+                    const endOffset = 12;
+                    const currentOffset = startOffset + (endOffset - startOffset) * item.progress;
+                    px = item.x * TILE_SIZE + TILE_SIZE / 2 + dir.x * currentOffset;
+                    py = item.y * TILE_SIZE + TILE_SIZE / 2 + dir.y * currentOffset;
+                } else {
+                    // Свободный предмет — лежит в центре тайла
+                    px = item.x * TILE_SIZE + TILE_SIZE / 2;
+                    py = item.y * TILE_SIZE + TILE_SIZE / 2;
+                }
+
+                let color, glowColor;
+                switch (item.type) {
+                    case 'ore': color = '#B87333'; glowColor = 'rgba(184,115,51,0.4)'; break;
+                    case 'coal': color = '#444'; glowColor = 'rgba(100,100,100,0.3)'; break;
+                    case 'metal': color = '#D0D0D0'; glowColor = 'rgba(200,200,200,0.4)'; break;
+                    case 'plate': color = '#FFD700'; glowColor = 'rgba(255,215,0,0.4)'; break;
+                }
+
+                // Свечение
+                ctx.fillStyle = glowColor;
+                ctx.beginPath();
+                ctx.arc(px, py, 11, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Основной предмет
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(px, py, 7, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Блик
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.beginPath();
+                ctx.arc(px - 2, py - 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Обводка
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(px, py, 7, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+
+        function drawRoundedRect(x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function drawMine(x, y, building) {
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            drawRoundedRect(x + 4, y + 6, TILE_SIZE - 4, TILE_SIZE - 6, 4);
+            ctx.fill();
+
+            // Корпус бура
+            const bodyGrad = ctx.createLinearGradient(x, y, x, y + TILE_SIZE);
+            bodyGrad.addColorStop(0, '#7a7a7a');
+            bodyGrad.addColorStop(0.5, '#5a5a5a');
+            bodyGrad.addColorStop(1, '#3a3a3a');
+            ctx.fillStyle = bodyGrad;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 5);
+            ctx.fill();
+
+            // Обводка
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1.5;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 5);
+            ctx.stroke();
+
+            // Болты по углам
+            ctx.fillStyle = '#999';
+            const bolts = [[x + 7, y + 7], [x + TILE_SIZE - 7, y + 7], 
+                          [x + 7, y + TILE_SIZE - 7], [x + TILE_SIZE - 7, y + TILE_SIZE - 7]];
+            bolts.forEach(([bx, by]) => {
+                ctx.beginPath();
+                ctx.arc(bx, by, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Буровая головка (вращающаяся)
+            const rotation = gameState.gameTime * 8;
+            ctx.save();
+            ctx.translate(x + TILE_SIZE/2, y + TILE_SIZE/2);
+            
+            // Анимация вибрации при работе
+            const vibration = building.workProgress > 0 ? Math.sin(gameState.gameTime * 30) * 1 : 0;
+            ctx.translate(vibration, vibration);
+
+            // Внешнее кольцо
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 10, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Зубья бура
+            for (let i = 0; i < 6; i++) {
+                ctx.save();
+                ctx.rotate(rotation + i * Math.PI / 3);
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.moveTo(4, 0);
+                ctx.lineTo(10, -2);
+                ctx.lineTo(10, 2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Центр
+            ctx.fillStyle = '#c0c0c0';
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            // Индикатор работы
+            if (building.workProgress > 0) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(x + 5, y + TILE_SIZE - 7, (TILE_SIZE - 10) * building.workProgress, 3);
+                ctx.strokeStyle = '#0f0';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(x + 5, y + TILE_SIZE - 7, TILE_SIZE - 10, 3);
+            }
+
+            // Направление выхода
+            const dir = DIR_VECTORS[building.direction];
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x + TILE_SIZE/2, y + TILE_SIZE/2);
+            ctx.lineTo(x + TILE_SIZE/2 + dir.x * 16, y + TILE_SIZE/2 + dir.y * 16);
+            ctx.stroke();
+        }
+
+        function drawBelt(x, y, building) {
+            const dir = DIR_VECTORS[building.direction];
+
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(x + 2, y + 4, TILE_SIZE - 2, TILE_SIZE - 4);
+
+            // Основа конвейера
+            const baseGrad = ctx.createLinearGradient(x, y, x, y + TILE_SIZE);
+            baseGrad.addColorStop(0, '#4a4a4a');
+            baseGrad.addColorStop(0.5, '#3a3a3a');
+            baseGrad.addColorStop(1, '#2a2a2a');
+            ctx.fillStyle = baseGrad;
+            ctx.fillRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+            // Рамка
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+            // Валики конвейера
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            const perpX = -dir.y;
+            const perpY = dir.x;
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(
+                    x + TILE_SIZE/2 + perpX * (i * 8) - dir.x * 12,
+                    y + TILE_SIZE/2 + perpY * (i * 8) - dir.y * 12
+                );
+                ctx.lineTo(
+                    x + TILE_SIZE/2 + perpX * (i * 8) + dir.x * 12,
+                    y + TILE_SIZE/2 + perpY * (i * 8) + dir.y * 12
+                );
+                ctx.stroke();
+            }
+
+            // Анимированные ролики
+            const animOffset = (gameState.gameTime * 40) % 12;
+            ctx.fillStyle = '#FFA500';
+            for (let i = -2; i <= 2; i++) {
+                const offset = i * 10 + animOffset - 10;
+                const px = x + TILE_SIZE/2 + dir.x * offset;
+                const py = y + TILE_SIZE/2 + dir.y * offset;
+                if (px > x + 4 && px < x + TILE_SIZE - 4 && 
+                    py > y + 4 && py < y + TILE_SIZE - 4) {
+                    ctx.beginPath();
+                    ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Направление - стрелка
+            const tipX = x + TILE_SIZE/2 + dir.x * 14;
+            const tipY = y + TILE_SIZE/2 + dir.y * 14;
+            const baseX = x + TILE_SIZE/2 - dir.x * 8;
+            const baseY = y + TILE_SIZE/2 - dir.y * 8;
+            const perpOffset = 5;
+
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(
+                baseX + dir.y * perpOffset,
+                baseY - dir.x * perpOffset
+            );
+            ctx.lineTo(
+                baseX - dir.y * perpOffset,
+                baseY + dir.x * perpOffset
+            );
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#FFA500';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function drawFurnace(x, y, building) {
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            drawRoundedRect(x + 4, y + 6, TILE_SIZE - 4, TILE_SIZE - 6, 6);
+            ctx.fill();
+
+            // Корпус печи
+            const bodyGrad = ctx.createLinearGradient(x, y, x + TILE_SIZE, y + TILE_SIZE);
+            bodyGrad.addColorStop(0, '#8B4513');
+            bodyGrad.addColorStop(0.5, '#A0522D');
+            bodyGrad.addColorStop(1, '#654321');
+            ctx.fillStyle = bodyGrad;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 6);
+            ctx.fill();
+
+            // Обводка
+            ctx.strokeStyle = '#CD853F';
+            ctx.lineWidth = 2;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 6);
+            ctx.stroke();
+
+            // Кирпичная текстура
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 1;
+            for (let row = 0; row < 3; row++) {
+                const rowY = y + 8 + row * 10;
+                const offset = row % 2 === 0 ? 0 : 8;
+                for (let col = 0; col < 3; col++) {
+                    const colX = x + 6 + col * 11 + offset;
+                    ctx.strokeRect(colX, rowY, 10, 8);
+                }
+            }
+
+            // Окно печи
+            ctx.fillStyle = '#2a2a2a';
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2 - 2, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Огонь внутри
+            if (building.inputBuffer.ore > 0 || building.workProgress > 0) {
+                const time = gameState.gameTime * 10;
+                
+                // Свечение
+                const glowGrad = ctx.createRadialGradient(
+                    x + TILE_SIZE/2, y + TILE_SIZE/2 - 2, 2,
+                    x + TILE_SIZE/2, y + TILE_SIZE/2 - 2, 12
+                );
+                glowGrad.addColorStop(0, 'rgba(255, 100, 0, 0.8)');
+                glowGrad.addColorStop(0.5, 'rgba(255, 50, 0, 0.4)');
+                glowGrad.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                ctx.fillStyle = glowGrad;
+                ctx.beginPath();
+                ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2 - 2, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Языки пламени
+                for (let i = 0; i < 3; i++) {
+                    const flameX = x + TILE_SIZE/2 + (i - 1) * 4;
+                    const flameHeight = 4 + Math.sin(time + i * 2) * 2;
+                    const flameY = y + TILE_SIZE/2 - 2 - flameHeight;
+                    
+                    ctx.fillStyle = i === 1 ? '#FF4500' : '#FF6347';
+                    ctx.beginPath();
+                    ctx.moveTo(flameX - 2, y + TILE_SIZE/2 + 2);
+                    ctx.quadraticCurveTo(flameX, flameY, flameX + 2, y + TILE_SIZE/2 + 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            // Труба сверху
+            ctx.fillStyle = '#555';
+            ctx.fillRect(x + TILE_SIZE/2 - 3, y + 2, 6, 6);
+            ctx.strokeStyle = '#777';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + TILE_SIZE/2 - 3, y + 2, 6, 6);
+
+            // Дым из трубы (анимация)
+            if (building.inputBuffer.ore > 0 || building.workProgress > 0) {
+                for (let i = 0; i < 3; i++) {
+                    const smokeTime = gameState.gameTime * 2 + i * 1.5;
+                    const smokeY = y - 2 - (smokeTime % 3) * 4;
+                    const smokeX = x + TILE_SIZE/2 + Math.sin(smokeTime * 3) * 3;
+                    const alpha = 0.5 - (smokeTime % 3) / 6;
+                    
+                    ctx.fillStyle = `rgba(150, 150, 150, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(smokeX, smokeY, 2 + (smokeTime % 3), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Прогресс-бар
+            if (building.workProgress > 0) {
+                const barWidth = TILE_SIZE - 12;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(x + 6, y + TILE_SIZE - 8, barWidth, 4);
+                
+                const progressGrad = ctx.createLinearGradient(x + 6, y, x + 6 + barWidth, y);
+                progressGrad.addColorStop(0, '#FF4500');
+                progressGrad.addColorStop(1, '#FFD700');
+                ctx.fillStyle = progressGrad;
+                ctx.fillRect(x + 6, y + TILE_SIZE - 8, barWidth * building.workProgress, 4);
+            }
+
+            // Направление выхода
+            const dir = DIR_VECTORS[building.direction];
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + TILE_SIZE/2, y + TILE_SIZE/2);
+            ctx.lineTo(x + TILE_SIZE/2 + dir.x * 16, y + TILE_SIZE/2 + dir.y * 16);
+            ctx.stroke();
+
+            // Стрелка выхода
+            const tipX = x + TILE_SIZE/2 + dir.x * 16;
+            const tipY = y + TILE_SIZE/2 + dir.y * 16;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Индикаторы входных ресурсов
+            let dotX = x + 6;
+            const dotY = y + TILE_SIZE - 14;
+            if (building.inputBuffer.ore > 0) {
+                ctx.fillStyle = '#B87333';
+                ctx.beginPath();
+                ctx.arc(dotX + 4, dotY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+                dotX += 10;
+            }
+            if (building.inputBuffer.coal > 0) {
+                ctx.fillStyle = '#444';
+                ctx.beginPath();
+                ctx.arc(dotX + 4, dotY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+
+            // Выходной буфер
+            if (building.outputBuffer.metal > 0) {
+                ctx.fillStyle = '#D0D0D0';
+                ctx.beginPath();
+                ctx.arc(x + TILE_SIZE - 8, dotY, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+        }
+
+        function drawAssembler(x, y, building) {
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            drawRoundedRect(x + 4, y + 6, TILE_SIZE - 4, TILE_SIZE - 6, 6);
+            ctx.fill();
+
+            // Корпус
+            const bodyGrad = ctx.createLinearGradient(x, y, x + TILE_SIZE, y + TILE_SIZE);
+            bodyGrad.addColorStop(0, '#4a6fa5');
+            bodyGrad.addColorStop(0.5, '#3a5f95');
+            bodyGrad.addColorStop(1, '#2a4f85');
+            ctx.fillStyle = bodyGrad;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 6);
+            ctx.fill();
+
+            // Обводка
+            ctx.strokeStyle = '#5a8fcd';
+            ctx.lineWidth = 2;
+            drawRoundedRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6, 6);
+            ctx.stroke();
+
+            // Панели на корпусе
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 6, y + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+
+            // Болты
+            ctx.fillStyle = '#7ab3e0';
+            const bolts = [[x + 8, y + 8], [x + TILE_SIZE - 8, y + 8], 
+                          [x + 8, y + TILE_SIZE - 8], [x + TILE_SIZE - 8, y + TILE_SIZE - 8]];
+            bolts.forEach(([bx, by]) => {
+                ctx.beginPath();
+                ctx.arc(bx, by, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Шестерёнки
+            ctx.save();
+            ctx.translate(x + TILE_SIZE/2, y + TILE_SIZE/2);
+
+            // Большая шестерёнка
+            const rotation1 = gameState.gameTime * 2;
+            ctx.save();
+            ctx.rotate(rotation1);
+            ctx.strokeStyle = '#c0c0c0';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                ctx.save();
+                ctx.rotate(i * Math.PI / 4);
+                ctx.beginPath();
+                ctx.moveTo(6, 0);
+                ctx.lineTo(11, -1.5);
+                ctx.lineTo(11, 1.5);
+                ctx.closePath();
+                ctx.fillStyle = '#a0a0a0';
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.strokeStyle = '#b0b0b0';
+            ctx.stroke();
+            ctx.restore();
+
+            // Малая шестерёнка (вращается в другую сторону)
+            const rotation2 = -gameState.gameTime * 3;
+            ctx.save();
+            ctx.translate(9, 0);
+            ctx.rotate(rotation2);
+            for (let i = 0; i < 6; i++) {
+                ctx.save();
+                ctx.rotate(i * Math.PI / 3);
+                ctx.beginPath();
+                ctx.moveTo(4, 0);
+                ctx.lineTo(7, -1);
+                ctx.lineTo(7, 1);
+                ctx.closePath();
+                ctx.fillStyle = '#909090';
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.strokeStyle = '#a0a0a0';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.restore();
+
+            // Индикаторы ресурсов
+            if (building.inputBuffer.metal > 0 || building.inputBuffer.coal > 0) {
+                const dotY = y + TILE_SIZE - 12;
+                if (building.inputBuffer.metal > 0) {
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.beginPath();
+                    ctx.arc(x + 12, dotY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+                if (building.inputBuffer.coal > 0) {
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath();
+                    ctx.arc(x + TILE_SIZE - 12, dotY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+
+            // Прогресс-бар
+            if (building.workProgress > 0) {
+                const barWidth = TILE_SIZE - 12;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(x + 6, y + TILE_SIZE - 8, barWidth, 4);
+                
+                const progressGrad = ctx.createLinearGradient(x + 6, y, x + 6 + barWidth, y);
+                progressGrad.addColorStop(0, '#00FF00');
+                progressGrad.addColorStop(1, '#7FFF00');
+                ctx.fillStyle = progressGrad;
+                ctx.fillRect(x + 6, y + TILE_SIZE - 8, barWidth * building.workProgress, 4);
+            }
+
+            // Направление выхода
+            const dir = DIR_VECTORS[building.direction];
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + TILE_SIZE/2, y + TILE_SIZE/2);
+            ctx.lineTo(x + TILE_SIZE/2 + dir.x * 16, y + TILE_SIZE/2 + dir.y * 16);
+            ctx.stroke();
+
+            const tipX = x + TILE_SIZE/2 + dir.x * 16;
+            const tipY = y + TILE_SIZE/2 + dir.y * 16;
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Визуальный эффект создания пластины
+            if (building.lastPlateTime && (gameState.gameTime - building.lastPlateTime) < 0.5) {
+                const age = gameState.gameTime - building.lastPlateTime;
+                const alpha = 1 - age / 0.5;
+                const scale = 1 + age * 2;
+
+                ctx.save();
+                ctx.translate(x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+                ctx.scale(scale, scale);
+
+                // Вспышка
+                const flashGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+                flashGrad.addColorStop(0, `rgba(255, 215, 0, ${alpha * 0.6})`);
+                flashGrad.addColorStop(1, `rgba(255, 215, 0, 0)`);
+                ctx.fillStyle = flashGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Текст "+1"
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('+1', 0, -18 - age * 10);
+
+                ctx.restore();
+            }
+        }
+
+        function drawChest(x, y, building) {
+            // Тень
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            drawRoundedRect(x + 4, y + 8, TILE_SIZE - 4, TILE_SIZE - 8, 4);
+            ctx.fill();
+
+            // Основная коробка
+            const chestGrad = ctx.createLinearGradient(x, y + 8, x, y + TILE_SIZE);
+            chestGrad.addColorStop(0, '#B8860B');
+            chestGrad.addColorStop(0.3, '#DAA520');
+            chestGrad.addColorStop(1, '#B8860B');
+            ctx.fillStyle = chestGrad;
+            drawRoundedRect(x + 5, y + 10, TILE_SIZE - 10, TILE_SIZE - 14, 4);
+            ctx.fill();
+
+            // Обводка
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 1.5;
+            drawRoundedRect(x + 5, y + 10, TILE_SIZE - 10, TILE_SIZE - 14, 4);
+            ctx.stroke();
+
+            // Крышка
+            const lidGrad = ctx.createLinearGradient(x, y + 6, x, y + 14);
+            lidGrad.addColorStop(0, '#DAA520');
+            lidGrad.addColorStop(1, '#B8860B');
+            ctx.fillStyle = lidGrad;
+            drawRoundedRect(x + 6, y + 7, TILE_SIZE - 12, 8, 3);
+            ctx.fill();
+
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 1;
+            drawRoundedRect(x + 6, y + 7, TILE_SIZE - 12, 8, 3);
+            ctx.stroke();
+
+            // Замок
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(x + TILE_SIZE/2 - 4, y + TILE_SIZE/2 - 1, 8, 6);
+            ctx.strokeStyle = '#B8860B';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + TILE_SIZE/2 - 4, y + TILE_SIZE/2 - 1, 8, 6);
+
+            // Замочная скважина
+            ctx.fillStyle = '#8B6914';
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE/2, y + TILE_SIZE/2 + 1, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Металлические углы
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            const corners = [
+                [x + 7, y + 12], [x + TILE_SIZE - 7, y + 12],
+                [x + 7, y + TILE_SIZE - 5], [x + TILE_SIZE - 7, y + TILE_SIZE - 5]
+            ];
+            corners.forEach(([cx, cy]) => {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            // Содержимое — иконки ресурсов из хранилища
+            const resourceTypes = [
+                { key: 'ore', color: '#B87333', label: 'Р' },
+                { key: 'coal', color: '#555', label: 'У' },
+                { key: 'metal', color: '#D0D0D0', label: 'М' },
+                { key: 'plate', color: '#FFD700', label: 'П' }
+            ];
+
+            let dotIndex = 0;
+            for (const res of resourceTypes) {
+                if (building.storage[res.key] > 0) {
+                    const dotX = x + 8 + (dotIndex % 4) * 8;
+                    const dotY = y + TILE_SIZE - 12;
+
+                    // Цветная точка
+                    ctx.fillStyle = res.color;
+                    ctx.beginPath();
+                    ctx.arc(dotX + 3, dotY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+
+                    dotIndex++;
+                }
+            }
+
+            // Общее количество в хранилище
+            let total = 0;
+            for (let item in building.storage) {
+                total += building.storage[item];
+            }
+            if (total > 0) {
+                // Фон
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                drawRoundedRect(x + 6, y + TILE_SIZE - 18, TILE_SIZE - 12, 12, 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 8px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${total}/${building.storageCapacity}`, x + TILE_SIZE / 2, y + TILE_SIZE - 12);
+
+                // Мини прогресс-бар
+                const pct = total / building.storageCapacity;
+                let barColor = '#4CAF50';
+                if (pct > 0.5) barColor = '#FF9800';
+                if (pct > 0.8) barColor = '#f44336';
+                ctx.fillStyle = barColor;
+                ctx.fillRect(x + 8, y + TILE_SIZE - 7, (TILE_SIZE - 16) * pct, 2);
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('invOre').textContent = gameState.inventory.ore;
+            document.getElementById('invCoal').textContent = gameState.inventory.coal;
+            document.getElementById('invMetal').textContent = gameState.inventory.metal;
+            document.getElementById('invPlate').textContent = gameState.inventory.plate;
+            document.getElementById('totalProduced').textContent = gameState.totalProduced;
+            
+            const minutes = Math.floor(gameState.gameTime / 60);
+            const seconds = Math.floor(gameState.gameTime % 60);
+            document.getElementById('gameTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Игровой цикл
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Инициализация
+        initGrid();
+        resizeCanvas();
+        gameLoop();
+    </script>
+</body>
+</html>
